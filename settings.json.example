@@ -1,5 +1,5 @@
 {
     "guild_id": "",
-    "target_channel_id": "999",
+    "quote_channel_id": "999",
     "bot_token": "TOKEN_HERE"
 }
