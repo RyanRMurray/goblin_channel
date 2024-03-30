@@ -25,7 +25,6 @@ async def on_ready():
 
 @CLIENT.event
 async def on_message(message: Message):
-    print(message.content)
     await BOT.process_msg(message)
 
 @TREE.command(
