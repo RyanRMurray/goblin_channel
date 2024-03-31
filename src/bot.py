@@ -1,10 +1,12 @@
+from asyncio import AbstractEventLoop, sleep, run_coroutine_threadsafe
 from enum import Enum
+from datetime import datetime, timedelta
 from discord import Client, Message
-from discord.ext.commands import Context 
 from settings import Settings
-from typing import Set
+from typing import Set, Optional
 import random
 import re
+from threading import Thread
 
 class Status(Enum):
     STARTING = 1
@@ -17,6 +19,9 @@ class GoblinBot():
     status: Status
     settings: Settings
     quote_ids: Set[int] = set()
+    loop: Optional[AbstractEventLoop] = None
+    daily_terminate_flag: bool = False
+    daily_thread: Optional[Thread] = None
 
     def __init__(self, settings: Settings):
         # load settings
@@ -71,3 +76,29 @@ class GoblinBot():
         
         self.quote_ids.add(message.id)
         print(f"Added quote ID {message.id}")
+
+    async def daily_post(self, client: Client, channel_id: int, dt: datetime):
+        next_time = dt
+        while True:
+            if self.daily_terminate_flag:
+                return
+            if datetime.now() >= next_time:
+                ch = client.get_channel(channel_id)
+                quote = await self.get_quote(client)
+                await ch.send(f"Quote of the Day:\n{quote}")
+                next_time += timedelta(days=1)
+            else:
+                await sleep(10)
+
+    async def start_daily_post(self, client: Client, channel_id: int, dt: datetime):
+        # kill any existing thread
+        if self.daily_thread is not None:
+            print("Killing daily thread")
+            self.daily_terminate_flag = True
+            self.daily_thread.join()
+            self.daily_thread = None
+            self.daily_terminate_flag = False
+        
+        self.daily_thread = Thread(target=run_coroutine_threadsafe, args=(self.daily_post(client, channel_id, dt),self.loop))
+        self.daily_thread.start()
+        print("Started daily thread")
